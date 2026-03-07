@@ -6,6 +6,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "hal/i2s_types.h"
+#include "sid.hpp"
 #include "sid/sid.hpp"
 
 extern "C" {
@@ -16,25 +17,20 @@ static const char* TAG = "I2S";
 
 esp_err_t I2S::init()
 {
-    // TODO: Move to a better place.
-    ESP_LOGI(TAG, "Initializing BSP audio interface");
-    bsp_audio_set_volume(0);
-    esp_err_t res = bsp_audio_initialize((uint32_t)DEFAULT_SAMPLERATE);
-    if (res != ESP_OK) {
-        ESP_LOGE(TAG, "Initializing audio failed");
-        return res;
-    }
-
-    ESP_LOGI(TAG, "Enable aplifier for audio output");
-    bsp_audio_set_volume(60);
-    bsp_audio_set_amplifier(false);
-
-    ESP_LOGI(TAG, "Initializing I2S audio interface");
+    esp_err_t res = bsp_audio_set_volume(0);
+    if (res != ESP_OK) return res;
     res = bsp_audio_get_i2s_handle(&i2s_handle);
-    if (res != ESP_OK) {
-        ESP_LOGE(TAG, "Initializing I2S channel failed");
-        return res;
-    }
+    if (res != ESP_OK) return res;
+    res = i2s_channel_disable(i2s_handle);
+    if (res != ESP_OK) return res;
+    res = bsp_audio_set_rate(DEFAULT_SAMPLERATE);
+    if (res != ESP_OK) return res;
+    res = i2s_channel_enable(i2s_handle);
+    if (res != ESP_OK) return res;
+    res = bsp_audio_set_volume(60);
+    if (res != ESP_OK) return res;
+    res = bsp_audio_set_amplifier(false);
+    if (res != ESP_OK) return res;
 
     return ESP_OK;
 }
@@ -60,16 +56,13 @@ esp_err_t I2S::write(const int16_t* data, size_t size)
         // swapped = ((uint16_t(data[i]) << 8) & 0xFF00) | ((uint16_t(data[i]) >> 8) & 0x00FF);
         swapped = data[i];
 
-        stereo_sample = MonoToStereo{
-            .l = swapped,
-            .r = swapped
-        }.val;
+        stereo_sample = MonoToStereo{.l = swapped, .r = swapped}.val;
 
         reinterpret_cast<uint32_t*>(i2s_stereo_out)[i] = stereo_sample;
     }
 
     // size * 2 * 2 because of 2 channels (left and right) and 2 bytes per sample (int16_t)
-    i2s_channel_write(i2s_handle, (uint8_t const*)i2s_stereo_out, size*2*2, &bytes_written, 12);
+    i2s_channel_write(i2s_handle, (uint8_t const*)i2s_stereo_out, size * 2 * 2, &bytes_written, 12);
     if (bytes_written < size * 2 * 2) {
         ESP_LOGE(TAG, "Failed to write to I2S buffer %d != %d", bytes_written, size * 2 * 2);
         return ESP_FAIL;

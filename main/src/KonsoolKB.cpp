@@ -22,7 +22,6 @@ extern "C" {
 }
 #include <cstdint>
 #include <cstring>
-#include <konsoolled.hpp>
 #include "C64Emu.hpp"
 #include "ExternalCmds.hpp"
 #include "Joystick.hpp"
@@ -46,10 +45,8 @@ void KonsoolKB::init(C64Emu* c64emu)
     }
 
     this->c64emu         = c64emu;
-    this->konsoleled     = new KonsoleLED();
     this->menuController = &c64emu->menuController;
 
-    konsoleled->init();
 
     ESP_ERROR_CHECK(bsp_input_get_queue(&input_event_queue));
 
@@ -196,8 +193,6 @@ void KonsoolKB::handleKeyPress()
 
     switch (event.type) {
         case INPUT_EVENT_TYPE_NAVIGATION: {
-            konsoleled->set_led_color(4, 0xffff0000);
-            konsoleled->show_led_colors();
             if (event.args_navigation.state == false) {
                 break;
             }
@@ -222,8 +217,6 @@ void KonsoolKB::handleKeyPress()
             break;
         }
         case INPUT_EVENT_TYPE_ACTION: {
-            konsoleled->set_led_color(4, 0xff0000ff);
-            konsoleled->show_led_colors();
             break;
         }
         default:

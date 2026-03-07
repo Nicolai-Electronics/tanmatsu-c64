@@ -99,7 +99,16 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(res);
 
     // Initialize the Board Support Package
-    ESP_ERROR_CHECK(bsp_device_initialize());
+    const bsp_configuration_t bsp_configuration = {
+        .display =
+            {
+                .requested_color_format = LCD_COLOR_PIXEL_FORMAT_RGB565,
+                .num_fbs                = 1,
+            },
+    };
+    esp_err_t bsp_init_result = bsp_device_initialize(&bsp_configuration);
+
+    ESP_ERROR_CHECK(bsp_init_result);
     setup();  // Initialize the C64 emulator and the display driver
 
     bsp_display_get_tearing_effect_semaphore(&semaphore);
