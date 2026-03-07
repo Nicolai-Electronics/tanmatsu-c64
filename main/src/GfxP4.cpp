@@ -79,7 +79,7 @@ void GfxP4::init()
     ESP_ERROR_CHECK(res);                             // Check that the display handle has been initialized
     bsp_display_get_panel_io(&display_lcd_panel_io);  // Do not check result of panel IO handle: not all types of
                                                       // display expose a panel IO handle
-    res = bsp_display_get_parameters(&display_h_res, &display_v_res, &display_color_format);
+    res = bsp_display_get_parameters(&display_h_res, &display_v_res, &display_color_format, NULL);
     ESP_ERROR_CHECK(res);  // Check that the display parameters have been initialized
 
     // Setup variables

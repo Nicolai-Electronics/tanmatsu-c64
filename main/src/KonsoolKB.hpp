@@ -21,7 +21,6 @@
 #include "DisplayDriver.hpp"
 #include "bsp/input.h"
 #include "freertos/idf_additions.h"
-#include "konsoolled.hpp"
 #include "menuoverlay/MenuController.hpp"
 #include "menuoverlay/MenuDataStore.hpp"
 
@@ -31,7 +30,6 @@ class ExternalCmds;
 class KonsoolKB {
    private:
     C64Emu*         c64emu;
-    KonsoleLED*     konsoleled;
     DisplayDriver*  display;
     MenuController* menuController;
     MenuDataStore*  menuDataStore = MenuDataStore::getInstance();

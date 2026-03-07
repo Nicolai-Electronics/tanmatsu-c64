@@ -34,7 +34,6 @@
 #include "roms/charset.h"
 #include "sid/sid.hpp"
 extern "C" {
-#include "bsp/battery.h"
 // #include <esp_adc/adc_cali.h>
 // #include <esp_adc/adc_cali_scheme.h>
 // #include <esp_adc/adc_oneshot.h>
@@ -51,7 +50,7 @@ C64Emu* C64Emu::instance = nullptr;
 void IRAM_ATTR C64Emu::interruptProfilingBatteryCheckFunc()
 {
     // Retrieve the battery voltage
-    bsp_battery_get_voltage((uint16_t*)&batteryVoltage);
+    batteryVoltage = 0;
 
     // profiling (if activated)
     if (!perf) {
