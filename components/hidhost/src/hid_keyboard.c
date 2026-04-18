@@ -9,6 +9,7 @@
 #include "usb/hid_usage_mouse.h"
 
 #include "bsp/input.h"
+#include "bsp/power.h"
 
 static const char *TAG = "hid_kbd";
 
@@ -132,9 +133,9 @@ static void inject_modifier_changes(uint8_t prev, uint8_t curr)
             continue;
         }
 
-		bsp_input_event_t evt;
-		evt.type   = INPUT_EVENT_TYPE_SCANCODE;  
-		evt.args_scancode.args_scancode = sc | (now ? 0x00 : 0x80);
+        bsp_input_event_t evt;
+        evt.type   = INPUT_EVENT_TYPE_SCANCODE;  
+        evt.args_scancode.args_scancode = sc | (now ? 0x00 : 0x80);
         bsp_input_inject_event(&evt);
     }
 }
@@ -143,32 +144,14 @@ static void inject_modifier_changes(uint8_t prev, uint8_t curr)
 QueueHandle_t app_event_queue = NULL;
 
 /**
- * @brief APP event group
- *
- * Application logic can be different. There is a one among other ways to distinguish the
- * event by application event group.
- * In this example we have two event groups:
- * APP_EVENT            - General event, which is APP_QUIT_PIN press event (Generally, it is IO0).
- * APP_EVENT_HID_HOST   - HID Host Driver event, such as device connection/disconnection or input report.
- */
-typedef enum {
-    APP_EVENT = 0,
-    APP_EVENT_HID_HOST
-} app_event_group_t;
-
-/**
  * @brief APP event queue
  *
  * This event is used for delivering the HID Host event from callback to a task.
  */
 typedef struct {
-    app_event_group_t event_group;
-    /* HID Host - Device related info */
-    struct {
-        hid_host_device_handle_t handle;
-        hid_host_driver_event_t event;
-        void *arg;
-    } hid_host_device;
+    hid_host_device_handle_t handle;
+    hid_host_driver_event_t event;
+    void *arg;
 } app_event_queue_t;
 
 /**
@@ -241,20 +224,20 @@ static void hid_host_keyboard_report_callback(const uint8_t *const data, const i
         // key has been released verification
         if (prev_keys[i] > HID_KEY_ERROR_UNDEFINED &&
                 !key_found(kb_report->key, prev_keys[i], HID_KEYBOARD_KEY_MAX)) {
-			bsp_input_scancode_t sc = hid_to_bsp_scancode[prev_keys[i]];
-			bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
-			bsp_input_event.args_scancode.scancode = sc | 0x80;
-			bsp_input_inject_event(&bsp_input_event);
+            bsp_input_scancode_t sc = hid_to_bsp_scancode[prev_keys[i]];
+            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
+            bsp_input_event.args_scancode.scancode = sc | 0x80;
+            bsp_input_inject_event(&bsp_input_event);
             ESP_LOGI(TAG, "released, scancode= %x", bsp_input_event.args_scancode.scancode);
         }
 
         // key has been pressed verification
         if (kb_report->key[i] > HID_KEY_ERROR_UNDEFINED &&
                 !key_found(prev_keys, kb_report->key[i], HID_KEYBOARD_KEY_MAX)) {
-			bsp_input_scancode_t sc = hid_to_bsp_scancode[kb_report->key[i]];
-			bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
-			bsp_input_event.args_scancode.scancode = sc;
-			bsp_input_inject_event(&bsp_input_event);
+            bsp_input_scancode_t sc = hid_to_bsp_scancode[kb_report->key[i]];
+            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
+            bsp_input_event.args_scancode.scancode = sc;
+            bsp_input_inject_event(&bsp_input_event);
             ESP_LOGI(TAG, "pressed, scancode= %x", bsp_input_event.args_scancode.scancode);
         }
     }
@@ -286,10 +269,10 @@ static void hid_host_mouse_report_callback(const uint8_t *const data, const int 
     hid_print_new_device_report_header(HID_PROTOCOL_MOUSE);
 
     ESP_LOGI(TAG, "X: %06d\tY: %06d\t|%c|%c|",
-	   x_pos, y_pos,
-	   (mouse_report->buttons.button1 ? 'o' : ' '),
-	   (mouse_report->buttons.button2 ? 'o' : ' ')
-	);
+       x_pos, y_pos,
+       (mouse_report->buttons.button1 ? 'o' : ' '),
+       (mouse_report->buttons.button2 ? 'o' : ' ')
+    );
 }
 
 /**
@@ -451,11 +434,10 @@ void hid_host_device_callback(hid_host_device_handle_t hid_device_handle,
                               void *arg)
 {
     const app_event_queue_t evt_queue = {
-        .event_group = APP_EVENT_HID_HOST,
         // HID Host Device related info
-        .hid_host_device.handle = hid_device_handle,
-        .hid_host_device.event = event,
-        .hid_host_device.arg = arg
+        .handle = hid_device_handle,
+        .event = event,
+        .arg = arg
     };
 
     if (app_event_queue) {
@@ -469,6 +451,8 @@ esp_err_t hid_kbd_init(void)
 {
     BaseType_t task_created;
     ESP_LOGI(TAG, "hid_kbd_start");
+
+    bsp_power_set_usb_host_boost_enabled(true);
 
     /*
     * Create usb_lib_task to:
@@ -511,15 +495,15 @@ esp_err_t hid_kbd_init(void)
 
 void handle_hid_events(void)
 {
-	app_event_queue_t evt_queue;
+    app_event_queue_t evt_queue;
 
-	// Wait queue
-	if (xQueueReceive(app_event_queue, &evt_queue, 0)) {
-		if (APP_EVENT_HID_HOST ==  evt_queue.event_group) {
-			hid_host_device_event(evt_queue.hid_host_device.handle,
-								  evt_queue.hid_host_device.event,
-								  evt_queue.hid_host_device.arg);
-		}
-	}
+    // Wait queue
+    if (xQueueReceive(app_event_queue, &evt_queue, 0)) {
+        hid_host_device_event(
+            evt_queue.handle,
+            evt_queue.event,
+            evt_queue.arg
+        );
+    }
 }
 
