@@ -82,8 +82,8 @@ void KonsoolKB::handleKeyPress()
     if (xQueueReceive(input_event_queue, &event, pdMS_TO_TICKS(1))) {
         switch (event.type) {
             case INPUT_EVENT_TYPE_SCANCODE: {
-				// use Keycodes to keep track of pressed keys
-				key_code = event.args_scancode.scancode;
+                // use Keycodes to keep track of pressed keys
+                key_code = event.args_scancode.scancode;
                 keys_pressed[key_code & 0x7f] = (key_code & 0x80) ? false : true;
                 if (key_code == BSP_INPUT_SCANCODE_F6) {
                     menuController->toggle();
@@ -95,132 +95,131 @@ void KonsoolKB::handleKeyPress()
                     cur_port = menuDataStore->getInt("kb_joystick_port", 1);
                     ESP_LOGI(TAG, "Switched to joystick port %d", cur_port);
                 }
-				// Handle C64 keyboard matrix based on pressed keys
-				if (menuController->getVisible()) {
-					if (keys_pressed[BSP_INPUT_SCANCODE_KP8]) {  // UP key code
-						ESP_LOGD(TAG, "Handling UP key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_UP);
-					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP2]) {  // DOWN key code
-						ESP_LOGD(TAG, "Handling DOWN key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_DOWN);
-					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP4]) {  // LEFT key code
-						ESP_LOGD(TAG, "Handling LEFT key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LEFT);
-					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP6]) {  // RIGHT key code
-						ESP_LOGD(TAG, "Handling RIGHT key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_RIGHT);
-					} else if (keys_pressed[BSP_INPUT_SCANCODE_ESC]) {
-						ESP_LOGD(TAG, "Handling ESC key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LAST);
-					} else if (keys_pressed[BSP_INPUT_SCANCODE_ENTER]) {
-						ESP_LOGD(TAG, "Handling ENTER key press");
-						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_SELECT);
-					}
-				} else if (menuDataStore->getBool("kb_joystick_emu")) {
-					// TODO: Handle joystick input
-					virtjoystickvalue = 0xff;
-					// Allow UP, DOWN, LEFT, RIGHT, space for fire button
-					if (keys_pressed[BSP_INPUT_SCANCODE_KP8]) {  // UP key code
-						virtjoystickvalue = ~(1 << Joystick::C64JOYUP);
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_KP2]) {  // DOWN key code
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYDOWN);
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_KP4]) {  // LEFT key code
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYLEFT);
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_KP6]) {  // RIGHT key code
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYRIGHT);
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT]) {
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYFIRE);
-					}
-					// extra keys to make playing platform games easier
-					// Right shift is up + right
-					if (keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT]) {
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYUP);
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYRIGHT);
-					}
-					// The '/' key is up + left
-					if (keys_pressed[BSP_INPUT_SCANCODE_SLASH]) {
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYUP);
-						virtjoystickvalue &= ~(1 << Joystick::C64JOYLEFT);
-					}
-				}
+                // Handle C64 keyboard matrix based on pressed keys
+                if (menuController->getVisible()) {
+                    if (keys_pressed[BSP_INPUT_SCANCODE_KP8]) {  // UP key code
+                        ESP_LOGD(TAG, "Handling UP key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_UP);
+                    } else if (keys_pressed[BSP_INPUT_SCANCODE_KP2]) {  // DOWN key code
+                        ESP_LOGD(TAG, "Handling DOWN key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_DOWN);
+                    } else if (keys_pressed[BSP_INPUT_SCANCODE_KP4]) {  // LEFT key code
+                        ESP_LOGD(TAG, "Handling LEFT key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LEFT);
+                    } else if (keys_pressed[BSP_INPUT_SCANCODE_KP6]) {  // RIGHT key code
+                        ESP_LOGD(TAG, "Handling RIGHT key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_RIGHT);
+                    } else if (keys_pressed[BSP_INPUT_SCANCODE_ESC]) {
+                        ESP_LOGD(TAG, "Handling ESC key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LAST);
+                    } else if (keys_pressed[BSP_INPUT_SCANCODE_ENTER]) {
+                        ESP_LOGD(TAG, "Handling ENTER key press");
+                        menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_SELECT);
+                    }
+                } else if (menuDataStore->getBool("kb_joystick_emu")) {
+                    // TODO: Handle joystick input
+                    virtjoystickvalue = 0xff;
+                    // Allow UP, DOWN, LEFT, RIGHT, space for fire button
+                    if (keys_pressed[BSP_INPUT_SCANCODE_KP8]) {  // UP key code
+                        virtjoystickvalue = ~(1 << Joystick::C64JOYUP);
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_KP2]) {  // DOWN key code
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYDOWN);
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_KP4]) {  // LEFT key code
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYLEFT);
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_KP6]) {  // RIGHT key code
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYRIGHT);
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT]) {
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYFIRE);
+                    }
+                    // extra keys to make playing platform games easier
+                    // Right shift is up + right
+                    if (keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT]) {
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYUP);
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYRIGHT);
+                    }
+                    // The '/' key is up + left
+                    if (keys_pressed[BSP_INPUT_SCANCODE_SLASH]) {
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYUP);
+                        virtjoystickvalue &= ~(1 << Joystick::C64JOYLEFT);
+                    }
+                }
 
-				if (!menuController->getVisible() && virtjoystickvalue == 0xff) {
-					shiftctrlcode = 0;
+                if (!menuController->getVisible() && virtjoystickvalue == 0xff) {
+                    shiftctrlcode = 0;
+                    bool shift_pressed = keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT];
 
-					for (int i = 0; i < 128; i++) {
-						// shiftctrlcode = second byte bit 0 -> left shift, bit 1 -> ctrl, bit 2 -> commodore, bit 7 -> external
-						// command
-						if (i == BSP_INPUT_SCANCODE_F8 || i == BSP_INPUT_SCANCODE_LEFTSHIFT || i == BSP_INPUT_SCANCODE_LEFTCTRL || i == BSP_INPUT_SCANCODE_MENU) {
-							continue;
-						}
-						if (keys_pressed[i]) {
-							// Translate C64 keyboard matrix to KonsoleLED layout
-							// or it with the previous values
-							KbMatrixEntry ent = kb_matrix[i];
-							sentdc00          = sentdc00 & ent.sentdc00;
-							sentdc01          = sentdc01 & ent.sentdc01;
-						}
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT]) {
-						shiftctrlcode = 1;
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_LEFTCTRL] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTCTRL]) {
-						shiftctrlcode |= 2;
-					}
-					if (keys_pressed[BSP_INPUT_SCANCODE_MENU]) {
-						shiftctrlcode |= 4;
-					}
-				}
+                    for (int i = 0; i < 128; i++) {
+                        // shiftctrlcode = second byte bit 0 -> left shift, bit 1 -> ctrl, bit 2 -> commodore, bit 7 -> external
+                        // command
+                        if (i == BSP_INPUT_SCANCODE_F8 || i == BSP_INPUT_SCANCODE_LEFTSHIFT || i == BSP_INPUT_SCANCODE_LEFTCTRL || i == BSP_INPUT_SCANCODE_MENU) {
+                            continue;
+                        }
+                        if (keys_pressed[i]) {
+                            // Translate C64 keyboard matrix to KonsoleLED layout
+                            // or it with the previous values
+                            KbMatrixEntry ent = shift_pressed ? kb_matrix_shift[i] : kb_matrix[i];
+                            sentdc00          = sentdc00 & ent.sentdc00;
+                            sentdc01          = sentdc01 & ent.sentdc01;
+                            if (ent.implicit_shift) shiftctrlcode |= 1;
+                        }
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_LEFTCTRL] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTCTRL]) {
+                        shiftctrlcode |= 2;
+                    }
+                    if (keys_pressed[BSP_INPUT_SCANCODE_MENU]) {
+                        shiftctrlcode |= 4;
+                    }
+                }
                 break;
             }
-			case INPUT_EVENT_TYPE_NAVIGATION: {
-				if (event.args_navigation.state == false) {
-					break;
-				}
+            case INPUT_EVENT_TYPE_NAVIGATION: {
+                if (event.args_navigation.state == false) {
+                    break;
+                }
 
-				switch (event.args_navigation.key) {
-					break;
-					case BSP_INPUT_NAVIGATION_KEY_VOLUME_DOWN:
-						if (audio_volume > 0) {
-							audio_volume -= 5;
-							bsp_audio_set_volume(audio_volume);
-						};
-						break;
-					case BSP_INPUT_NAVIGATION_KEY_VOLUME_UP:
-						if (audio_volume <= 100) {
-							audio_volume += 5;
-							bsp_audio_set_volume(audio_volume);
-						};
-						break;
-					default:
-						break;
-				}
-				break;
-			}
-			case INPUT_EVENT_TYPE_ACTION: {
-				break;
-			}
-			case INPUT_EVENT_TYPE_KEYBOARD: {
-				// Handle modifier keys
-				// if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_SHIFT_L) {
-				//     shiftctrlcode = 1;
-				// }
-				if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_CTRL) {
-					shiftctrlcode |= 2;
-				}
-				if (event.args_keyboard.modifiers & BSP_INPUT_NAVIGATION_KEY_SUPER) {
-					shiftctrlcode |= 4;
-				}
-				break;
-			}
+                switch (event.args_navigation.key) {
+                    break;
+                    case BSP_INPUT_NAVIGATION_KEY_VOLUME_DOWN:
+                        if (audio_volume > 0) {
+                            audio_volume -= 5;
+                            bsp_audio_set_volume(audio_volume);
+                        };
+                        break;
+                    case BSP_INPUT_NAVIGATION_KEY_VOLUME_UP:
+                        if (audio_volume <= 100) {
+                            audio_volume += 5;
+                            bsp_audio_set_volume(audio_volume);
+                        };
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            }
+            case INPUT_EVENT_TYPE_ACTION: {
+                break;
+            }
+            case INPUT_EVENT_TYPE_KEYBOARD: {
+                // Handle modifier keys
+                // if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_SHIFT_L) {
+                //     shiftctrlcode = 1;
+                // }
+                if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_CTRL) {
+                    shiftctrlcode |= 2;
+                }
+                if (event.args_keyboard.modifiers & BSP_INPUT_NAVIGATION_KEY_SUPER) {
+                    shiftctrlcode |= 4;
+                }
+                break;
+            }
             default:
                 break;
-		}
-	}
+        }
+    }
 }
 
 uint8_t KonsoolKB::getdc01(uint8_t querydc00, bool xchgports)
