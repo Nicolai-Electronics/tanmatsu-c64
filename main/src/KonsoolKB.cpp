@@ -100,27 +100,21 @@ void KonsoolKB::handleKeyPress()
 					if (keys_pressed[BSP_INPUT_SCANCODE_KP8]) {  // UP key code
 						ESP_LOGD(TAG, "Handling UP key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_UP);
-						repeat_delay = 0;
 					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP2]) {  // DOWN key code
 						ESP_LOGD(TAG, "Handling DOWN key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_DOWN);
-						repeat_delay = 0;
 					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP4]) {  // LEFT key code
 						ESP_LOGD(TAG, "Handling LEFT key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LEFT);
-						repeat_delay = 0;
 					} else if (keys_pressed[BSP_INPUT_SCANCODE_KP6]) {  // RIGHT key code
 						ESP_LOGD(TAG, "Handling RIGHT key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_RIGHT);
-						repeat_delay = 0;
 					} else if (keys_pressed[BSP_INPUT_SCANCODE_ESC]) {
 						ESP_LOGD(TAG, "Handling ESC key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_LAST);
-						repeat_delay = 0;
 					} else if (keys_pressed[BSP_INPUT_SCANCODE_ENTER]) {
 						ESP_LOGD(TAG, "Handling ENTER key press");
 						menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_SELECT);
-						repeat_delay = 0;
 					}
 				} else if (menuDataStore->getBool("kb_joystick_emu")) {
 					// TODO: Handle joystick input
