@@ -105,10 +105,29 @@ static const bsp_input_scancode_t hid_to_bsp_scancode[256] = {
     [0x4C] = BSP_INPUT_SCANCODE_ESCAPED_GREY_INSERT,
     [0x4B] = BSP_INPUT_SCANCODE_ESCAPED_GREY_DEL,
 
+    /* Numeric keypad */
+    [0x53] = BSP_INPUT_SCANCODE_NUMLOCK,         // Num Lock
+    [0x54] = BSP_INPUT_SCANCODE_SLASH,           // Keypad / should be another constant
+    [0x55] = BSP_INPUT_SCANCODE_KPASTERISK,      // Keypad *
+    [0x56] = BSP_INPUT_SCANCODE_KPMINUS,         // Keypad -
+    [0x57] = BSP_INPUT_SCANCODE_KPPLUS,          // Keypad +
+    [0x58] = BSP_INPUT_SCANCODE_ESCAPED_KPENTER, // Keypad Enter
+
+    [0x59] = BSP_INPUT_SCANCODE_KP1,
+    [0x5A] = BSP_INPUT_SCANCODE_KP2,
+    [0x5B] = BSP_INPUT_SCANCODE_KP3,
+    [0x5C] = BSP_INPUT_SCANCODE_KP4,
+    [0x5D] = BSP_INPUT_SCANCODE_KP5,
+    [0x5E] = BSP_INPUT_SCANCODE_KP6,
+    [0x5F] = BSP_INPUT_SCANCODE_KP7,
+    [0x60] = BSP_INPUT_SCANCODE_KP8,
+    [0x61] = BSP_INPUT_SCANCODE_KP9,
+    [0x62] = BSP_INPUT_SCANCODE_KP0,
+
+    [0x63] = BSP_INPUT_SCANCODE_KPDOT,           // Keypad .
     // Modifiers handled separately
 };
 
-#ifdef NOT_YET
 /* Modifiers from byte 0 of boot report */
 static void inject_modifier_changes(uint8_t prev, uint8_t curr)
 {
@@ -133,13 +152,13 @@ static void inject_modifier_changes(uint8_t prev, uint8_t curr)
             continue;
         }
 
-        bsp_input_event_t evt;
-        evt.type   = INPUT_EVENT_TYPE_SCANCODE;  
-        evt.args_scancode.args_scancode = sc | (now ? 0x00 : 0x80);
-        bsp_input_inject_event(&evt);
+        bsp_input_event_t bsp_input_event;
+        bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;
+        bsp_input_event.args_scancode.scancode = mods[i].sc | (now ? 0x00 : 0x80);
+        ESP_LOGI(TAG, "inject_modifier_changes, scancode= %x", bsp_input_event.args_scancode.scancode);
+        bsp_input_inject_event(&bsp_input_event);
     }
 }
-#endif
 
 QueueHandle_t app_event_queue = NULL;
 
@@ -217,7 +236,13 @@ static void hid_host_keyboard_report_callback(const uint8_t *const data, const i
         return;
     }
 
+    static uint8_t prev_modifier =  0;
     static uint8_t prev_keys[HID_KEYBOARD_KEY_MAX] = { 0 };
+
+    uint8_t modifier = kb_report->modifier.val;
+    inject_modifier_changes(prev_modifier, modifier);
+    prev_modifier = modifier;
+
     bsp_input_event_t bsp_input_event;
 
     for (int i = 0; i < HID_KEYBOARD_KEY_MAX; i++) {
@@ -225,7 +250,7 @@ static void hid_host_keyboard_report_callback(const uint8_t *const data, const i
         if (prev_keys[i] > HID_KEY_ERROR_UNDEFINED &&
                 !key_found(kb_report->key, prev_keys[i], HID_KEYBOARD_KEY_MAX)) {
             bsp_input_scancode_t sc = hid_to_bsp_scancode[prev_keys[i]];
-            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
+            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;
             bsp_input_event.args_scancode.scancode = sc | 0x80;
             bsp_input_inject_event(&bsp_input_event);
             ESP_LOGI(TAG, "released, scancode= %x", bsp_input_event.args_scancode.scancode);
@@ -235,13 +260,13 @@ static void hid_host_keyboard_report_callback(const uint8_t *const data, const i
         if (kb_report->key[i] > HID_KEY_ERROR_UNDEFINED &&
                 !key_found(prev_keys, kb_report->key[i], HID_KEYBOARD_KEY_MAX)) {
             bsp_input_scancode_t sc = hid_to_bsp_scancode[kb_report->key[i]];
-            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;  
+            bsp_input_event.type   = INPUT_EVENT_TYPE_SCANCODE;
             bsp_input_event.args_scancode.scancode = sc;
             bsp_input_inject_event(&bsp_input_event);
             ESP_LOGI(TAG, "pressed, scancode= %x", bsp_input_event.args_scancode.scancode);
         }
-    }
 
+    }
     memcpy(prev_keys, &kb_report->key, HID_KEYBOARD_KEY_MAX);
 }
 
