@@ -79,7 +79,7 @@ void KonsoolKB::handleKeyPress()
     // Sync menu state with menu draw routine
     display->enableMenuOverlay(menuController->getVisible());
 
-    if (xQueueReceive(input_event_queue, &event, pdMS_TO_TICKS(1))) {
+    while (xQueueReceive(input_event_queue, &event, pdMS_TO_TICKS(1))) {
         switch (event.type) {
             case INPUT_EVENT_TYPE_SCANCODE: {
                 // use Keycodes to keep track of pressed keys
@@ -197,22 +197,6 @@ void KonsoolKB::handleKeyPress()
                         break;
                     default:
                         break;
-                }
-                break;
-            }
-            case INPUT_EVENT_TYPE_ACTION: {
-                break;
-            }
-            case INPUT_EVENT_TYPE_KEYBOARD: {
-                // Handle modifier keys
-                // if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_SHIFT_L) {
-                //     shiftctrlcode = 1;
-                // }
-                if (event.args_keyboard.modifiers & BSP_INPUT_MODIFIER_CTRL) {
-                    shiftctrlcode |= 2;
-                }
-                if (event.args_keyboard.modifiers & BSP_INPUT_NAVIGATION_KEY_SUPER) {
-                    shiftctrlcode |= 4;
                 }
                 break;
             }
