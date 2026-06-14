@@ -432,8 +432,7 @@ static void usb_lib_task(void *arg)
         // In this example, there is only one client registered
         // So, once we deregister the client, this call must succeed with ESP_OK
         if (event_flags & USB_HOST_LIB_EVENT_FLAGS_NO_CLIENTS) {
-            ESP_ERROR_CHECK(usb_host_device_free_all());
-            break;
+            usb_host_device_free_all();
         }
     }
 

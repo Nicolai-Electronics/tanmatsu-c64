@@ -40,10 +40,7 @@ class MenuController {
     void toggle();
     bool getVisible() const;
 
-    void setCurrentMenu(MenuBaseClass* menu)
-    {
-        currentMenu = menu;
-    }
+    void setCurrentMenu(MenuBaseClass* menu);
     void gotoRootMenu()
     {
         setCurrentMenu(rootMenu);

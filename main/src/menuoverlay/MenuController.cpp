@@ -77,6 +77,12 @@ void MenuController::render()
     }
 }
 
+void MenuController::setCurrentMenu(MenuBaseClass* menu)
+{
+    currentMenu = menu;
+    menu->navigateBegin();
+}
+
 void MenuController::show()
 {
     visible = true;
