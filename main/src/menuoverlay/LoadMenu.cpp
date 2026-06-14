@@ -1,4 +1,5 @@
 #include "LoadMenu.hpp"
+#include <dirent.h>
 #include <string.h>
 #include <sys/_default_fcntl.h>
 #include <cstddef>
@@ -15,7 +16,8 @@
 const static char* TAG = "LoadMenu";
 
 LoadMenu::LoadMenu(std::string title, MenuBaseClass* previousMenu, MenuController* menuController)
-    : MenuBaseClass(title, previousMenu, menuController) {
+    : MenuBaseClass(title, previousMenu, menuController)
+{
     // Nothing else to do here
     c64emu = menuController->getC64Emu();
     sdcard = &c64emu->externalCmds.sdcard;
@@ -25,8 +27,21 @@ LoadMenu::LoadMenu(std::string title, MenuBaseClass* previousMenu, MenuControlle
 
 LoadMenu::~LoadMenu() {};
 
-std::vector<MenuItem> LoadMenu::getDirPage(uint16_t page) {
+std::vector<MenuItem> LoadMenu::getDirPage(uint16_t page)
+{
     ESP_LOGI(TAG, "Loading directory page %d", page);
+
+    DIR* dir = opendir(SD_CARD_PRG_PATH);
+    if (!dir) {
+        MenuItem item;
+        item.id     = 0;
+        item.title  = "(No SD card mounted)";
+        item.type   = MenuItemType::ACTION;
+        item.action = [](MenuItem*) {};
+        this->items.push_back(item);
+        return items;
+    }
+    closedir(dir);
 
     auto     entries  = sdcard->listPagedEntries(SD_CARD_PRG_PATH, page, pageSize);
     uint16_t id_count = 0;
@@ -42,13 +57,15 @@ std::vector<MenuItem> LoadMenu::getDirPage(uint16_t page) {
     return items;
 }
 
-void LoadMenu::toNextPage() {
+void LoadMenu::toNextPage()
+{
     nextPage++;
     navigateBegin();
     ESP_LOGI(TAG, "Loading next page %d", nextPage);
 }
 
-void LoadMenu::toPrevPage() {
+void LoadMenu::toPrevPage()
+{
     if (nextPage > 0) {
         nextPage--;
         navigateBegin();
@@ -56,7 +73,8 @@ void LoadMenu::toPrevPage() {
     ESP_LOGI(TAG, "Loading previous page %d", nextPage);
 }
 
-void LoadMenu::displayMenu() {
+void LoadMenu::displayMenu()
+{
     // Free any existing menu items
     items.clear();
 
@@ -82,7 +100,8 @@ void LoadMenu::displayMenu() {
     this->items.push_back(nextPageItem);
 }
 
-void LoadMenu::loadPrg(MenuItem* item) {
+void LoadMenu::loadPrg(MenuItem* item)
+{
     ExternalCmds* ext = &c64emu->externalCmds;
 
     // First reset the C64
@@ -94,19 +113,30 @@ void LoadMenu::loadPrg(MenuItem* item) {
     menuController->hide();
 }
 
-void LoadMenu::update() {
+void LoadMenu::navigateBegin()
+{
+    needsRefresh = true;
+    nextPage     = 0;
+    MenuBaseClass::navigateBegin();
+}
+
+void LoadMenu::update()
+{
     ESP_LOGI(TAG, "Updating load menu");
-    if (currentPage != nextPage) {
-        currentPage = nextPage;
+    if (needsRefresh || currentPage != nextPage) {
+        needsRefresh = false;
+        currentPage  = nextPage;
         displayMenu();
     }
 }
 
-bool LoadMenu::init() {
+bool LoadMenu::init()
+{
     sdcard->init();
     ESP_LOGI(TAG, "Initializing load menu...");
-    // // Setup the menu entries
-    displayMenu();
+    needsRefresh = true;
+    currentPage  = 0;
+    nextPage     = 0;
 
     return true;
 }

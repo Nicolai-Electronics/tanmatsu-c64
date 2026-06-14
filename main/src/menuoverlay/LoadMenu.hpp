@@ -10,9 +10,10 @@ class LoadMenu : public MenuBaseClass {
     std::vector<MenuItem> getDirPage(uint16_t page);
     void                  displayMenu() const;
     void                  loadPrg(MenuItem* item);
-    uint16_t              currentPage = 0;
-    uint16_t              nextPage    = 0;
-    size_t                pageSize    = 12;
+    uint16_t              currentPage  = 0;
+    uint16_t              nextPage     = 0;
+    size_t                pageSize     = 12;
+    bool                  needsRefresh = true;
 
    public:
     LoadMenu(std::string title, MenuBaseClass* previousMenu, MenuController* menuController);
@@ -22,6 +23,7 @@ class LoadMenu : public MenuBaseClass {
 
     bool init() override;
     void update() override;
+    void navigateBegin() override;
     void toPrevPage();
     void toNextPage();
     void displayMenu();

@@ -1,8 +1,8 @@
 #include "MainMenu.hpp"
 #include "C64Emu.hpp"
 #include "LoadMenu.hpp"
-#include "UsbLoadMenu.hpp"
 #include "MenuDataStore.hpp"
+#include "UsbLoadMenu.hpp"
 #include "esp_log.h"
 #include "menuoverlay/MenuController.hpp"
 #include "menuoverlay/MenuDataStore.hpp"
@@ -31,9 +31,9 @@ void MainMenu::resetC64(MenuItem* item)
 bool MainMenu::init()
 {
     int id_count = 1;
-    loadMenu     = new LoadMenu("Load PRG", this, menuController);
+    loadMenu     = new LoadMenu("Load PRG (SD card)", this, menuController);
     loadMenu->init();
-    usbLoadMenu  = new UsbLoadMenu("Load PRG (USB)", this, menuController);
+    usbLoadMenu = new UsbLoadMenu("Load PRG (USB)", this, menuController);
     usbLoadMenu->init();
 
     MenuDataStore* menuDataStore = MenuDataStore::getInstance();
@@ -46,11 +46,11 @@ bool MainMenu::init()
     load_prg->submenu  = loadMenu;
     items.push_back(*load_prg);
 
-    MenuItem* usb_load_prg  = new MenuItem();
-    usb_load_prg->id        = id_count++;
-    usb_load_prg->title     = "Load PRG (USB)";
-    usb_load_prg->type      = MenuItemType::SUBMENU;
-    usb_load_prg->submenu   = usbLoadMenu;
+    MenuItem* usb_load_prg = new MenuItem();
+    usb_load_prg->id       = id_count++;
+    usb_load_prg->title    = "Load PRG (USB)";
+    usb_load_prg->type     = MenuItemType::SUBMENU;
+    usb_load_prg->submenu  = usbLoadMenu;
     items.push_back(*usb_load_prg);
 
     // Separator
@@ -75,10 +75,10 @@ bool MainMenu::init()
     speaker_emu->type       = MenuItemType::TOGGLE;
     speaker_emu->value_name = "speaker_ena";
     menuDataStore->set("speaker_ena", false);
-    speaker_emu->action     = [](MenuItem* item) {
+    speaker_emu->action = [](MenuItem* item) {
         MenuDataStore* menuDataStore = MenuDataStore::getInstance();
-        bool enabled = menuDataStore->getBool("speaker_ena", true);
-        ESP_LOGI("APM", "Toggling speaker audio: %s", enabled? "enabled" : "disabled");
+        bool           enabled       = menuDataStore->getBool("speaker_ena", true);
+        ESP_LOGI("APM", "Toggling speaker audio: %s", enabled ? "enabled" : "disabled");
         bsp_audio_set_amplifier(enabled);
     };
     items.push_back(*speaker_emu);
@@ -97,14 +97,14 @@ bool MainMenu::init()
     reset_item->action   = [this](MenuItem* item) { this->resetC64(item); };
     items.push_back(*reset_item);
 
-    MenuItem* perf_mon = new MenuItem();
+    MenuItem* perf_mon   = new MenuItem();
     perf_mon->id         = id_count++;
     perf_mon->title      = "Performance Monitor: ";
     perf_mon->type       = MenuItemType::TOGGLE;
     perf_mon->value_name = "perf_mon_ena";
     menuDataStore->set("perf_mon_ena", false);
-    perf_mon->action     = [this, menuDataStore](MenuItem* item) {
-        bool enabled = menuDataStore->getBool("perf_mon_ena", true);
+    perf_mon->action = [this, menuDataStore](MenuItem* item) {
+        bool enabled       = menuDataStore->getBool("perf_mon_ena", true);
         // Set the performance monitor enabled/disabled in C64Emu
         this->c64emu->perf = enabled;
     };
