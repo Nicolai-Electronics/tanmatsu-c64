@@ -58,6 +58,7 @@ extern "C" {
 // #include "src/konsoolled.hpp"
 // #include "src/Config.hpp"
 
+#include "global_event_handler.h"
 #include "hid_keyboard.h"
 
 // Constants
@@ -124,6 +125,8 @@ extern "C" void app_main(void)
     setup();  // Initialize the C64 emulator and the display driver
 
     bsp_display_get_tearing_effect_semaphore(&semaphore);
+
+    global_event_handler_initialize();
 
     float to50hz = 0;
 

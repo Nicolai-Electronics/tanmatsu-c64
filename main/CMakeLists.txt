@@ -19,6 +19,8 @@ idf_component_register(
 		"src/menuoverlay/MenuDataStore.cpp"
 		"src/sid/sid.cpp"
 		"src/sid/i2s.cpp"
+		"sdcard.c"
+		"global_event_handler.c"
 	PRIV_REQUIRES
 		esp_lcd
 		esp_adc

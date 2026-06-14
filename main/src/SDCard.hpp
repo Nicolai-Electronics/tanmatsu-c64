@@ -25,11 +25,7 @@
 
 class SDCard {
    private:
-    bool                initialized;
-    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-    sdmmc_host_t        host        = SDMMC_HOST_DEFAULT();
-    sdmmc_card_t        card;
-    sdmmc_card_t*       mount_card;
+    bool initialized;
 
    public:
     SDCard();
