@@ -32,6 +32,9 @@
 // #include "targets/tanmatsu/tanmatsu_hardware.h"
 #ifdef __cplusplus
 extern "C" {
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "bsp/device.h"
 #include "bsp/display.h"
 // #include "bsp/input.h"
@@ -39,6 +42,7 @@ extern "C" {
 // #include "esp_lcd_panel_ops.h"
 // #include "hal/lcd_types.h"
 #include "nvs_flash.h"
+#include "usb_msc.h"
 }
 #endif
 #include "driver/gpio.h"
@@ -67,6 +71,11 @@ static char const* TAG = "app_main";
 // lcd_color_rgb_pixel_format_t display_color_format;
 
 C64Emu c64Emu;
+
+static void on_usb_mount(bool mounted, void* arg)
+{
+    ESP_LOGI(TAG, "/usb %s", mounted ? "mounted" : "unmounted");
+}
 
 void setup()
 {
@@ -122,6 +131,7 @@ extern "C" void app_main(void)
     frameRateMutex = c64Emu.cpu.getFrameRateMutex();
 
     hid_kbd_init();
+    ESP_ERROR_CHECK(usb_msc_init(on_usb_mount, NULL));
     // Main loop outputs C64 screen contents to the display
     while (true) {
         // Wait for display refresh signal

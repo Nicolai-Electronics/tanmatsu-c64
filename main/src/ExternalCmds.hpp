@@ -103,6 +103,7 @@ class ExternalCmds {
 
     void    init(uint8_t* ram, C64Emu* c64emu);
     bool    loadPrg(const char* filename);
+    bool    loadPrgFromPath(const char* fullpath);
     void    reset();
     uint8_t executeExternalCmd(uint8_t* buffer);
 };

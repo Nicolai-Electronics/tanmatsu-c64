@@ -6,11 +6,13 @@
 #include "MenuDataStore.hpp"
 
 class LoadMenu;
+class UsbLoadMenu;
 
 class MainMenu : public MenuBaseClass {
    private:
-    C64Emu*   c64emu = nullptr;
-    LoadMenu* loadMenu;
+    C64Emu*      c64emu = nullptr;
+    LoadMenu*    loadMenu;
+    UsbLoadMenu* usbLoadMenu;
     void      resetC64(MenuItem* item);
     MenuDataStore* menuDataStore = MenuDataStore::getInstance();
 

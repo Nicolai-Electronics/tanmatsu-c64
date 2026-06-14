@@ -16,6 +16,8 @@
 */
 #include "ExternalCmds.hpp"
 #include <esp_log.h>
+#include <fcntl.h>
+#include <sys/unistd.h>
 #include "C64Emu.hpp"
 #include "Config.hpp"
 #include "listactions.h"
@@ -152,6 +154,33 @@ bool ExternalCmds::loadPrg(const char* filename) {
     }
     c64emu->cpu.cpuhalted = false;
     return 0;
+}
+
+bool ExternalCmds::loadPrgFromPath(const char* fullpath) {
+    ESP_LOGI(TAG, "load from %s", fullpath);
+    c64emu->cpu.cpuhalted = true;
+    bool fileloaded = false;
+
+    int fd = open(fullpath, O_RDONLY);
+    if (fd >= 0) {
+        uint8_t hdr[2];
+        if (read(fd, hdr, 2) == 2) {
+            uint16_t addr = hdr[0] | (hdr[1] << 8);
+            uint16_t pos  = addr;
+            while (read(fd, &ram[pos], 1) == 1) pos++;
+            setVarTab(pos);
+            fileloaded = true;
+        }
+        close(fd);
+    } else {
+        ESP_LOGE(TAG, "Failed to open %s", fullpath);
+    }
+
+    uint16_t action_addr = src_loadactions_prg[0] + (src_loadactions_prg[1] << 8);
+    memcpy(ram + action_addr, src_loadactions_prg + 2, src_loadactions_prg_len - 2);
+    c64emu->cpu.exeSubroutine(action_addr, fileloaded ? 1 : 0, 0, 0);
+    c64emu->cpu.cpuhalted = false;
+    return fileloaded;
 }
 
 void ExternalCmds::reset() {

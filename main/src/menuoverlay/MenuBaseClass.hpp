@@ -39,7 +39,7 @@ class MenuBaseClass {
     std::vector<MenuItem> getItems() const;
 
     // Navigation
-    void navigateBegin();
+    virtual void navigateBegin();
     void navigateUp();
     void navigateDown();
     size_t getSelectedItemIndex() const;

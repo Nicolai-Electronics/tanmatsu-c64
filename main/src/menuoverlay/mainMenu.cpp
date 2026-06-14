@@ -1,6 +1,7 @@
 #include "MainMenu.hpp"
 #include "C64Emu.hpp"
 #include "LoadMenu.hpp"
+#include "UsbLoadMenu.hpp"
 #include "MenuDataStore.hpp"
 #include "esp_log.h"
 #include "menuoverlay/MenuController.hpp"
@@ -32,6 +33,8 @@ bool MainMenu::init()
     int id_count = 1;
     loadMenu     = new LoadMenu("Load PRG", this, menuController);
     loadMenu->init();
+    usbLoadMenu  = new UsbLoadMenu("Load PRG (USB)", this, menuController);
+    usbLoadMenu->init();
 
     MenuDataStore* menuDataStore = MenuDataStore::getInstance();
 
@@ -42,6 +45,13 @@ bool MainMenu::init()
     load_prg->type     = MenuItemType::SUBMENU;
     load_prg->submenu  = loadMenu;
     items.push_back(*load_prg);
+
+    MenuItem* usb_load_prg  = new MenuItem();
+    usb_load_prg->id        = id_count++;
+    usb_load_prg->title     = "Load PRG (USB)";
+    usb_load_prg->type      = MenuItemType::SUBMENU;
+    usb_load_prg->submenu   = usbLoadMenu;
+    items.push_back(*usb_load_prg);
 
     // Separator
     MenuItem* sep1 = new MenuItem();
