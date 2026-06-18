@@ -68,7 +68,7 @@ bool MainMenu::init()
     speaker_emu->title      = "Speaker audio: ";
     speaker_emu->type       = MenuItemType::TOGGLE;
     speaker_emu->value_name = "speaker_ena";
-    menuDataStore->set("speaker_ena", false);
+    menuDataStore->set("speaker_ena", true);
     speaker_emu->action = [](MenuItem* item) {
         MenuDataStore* menuDataStore = MenuDataStore::getInstance();
         bool           enabled       = menuDataStore->getBool("speaker_ena", true);
