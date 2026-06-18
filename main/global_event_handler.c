@@ -16,7 +16,8 @@ static bool       headphones_inserted = false;
 #define VOLUME_DEFAULT_PERCENT 50
 #define VOLUME_STEP_PERCENT    5
 
-static uint8_t get_active_volume(void) {
+static uint8_t get_active_volume(void)
+{
     uint8_t v = VOLUME_DEFAULT_PERCENT;
     if (headphones_inserted) {
         nvs_settings_get_headphone_volume(&v, VOLUME_DEFAULT_PERCENT);
@@ -26,7 +27,8 @@ static uint8_t get_active_volume(void) {
     return v;
 }
 
-static void set_active_volume(uint8_t percent) {
+static void set_active_volume(uint8_t percent)
+{
     if (percent > 100) percent = 100;
     if (headphones_inserted) {
         nvs_settings_set_headphone_volume(percent);
@@ -36,7 +38,8 @@ static void set_active_volume(uint8_t percent) {
     bsp_audio_set_volume((float)percent);
 }
 
-static void handle_sdcard(bool inserted) {
+static void handle_sdcard(bool inserted)
+{
     if (inserted) {
         ESP_LOGI(TAG, "SD card inserted");
         sd_mount();
@@ -46,7 +49,8 @@ static void handle_sdcard(bool inserted) {
     }
 }
 
-static void handle_audiojack(bool inserted) {
+static void handle_audiojack(bool inserted)
+{
     ESP_LOGI(TAG, "Audio jack %s", inserted ? "inserted" : "removed");
     headphones_inserted = inserted;
     bsp_audio_set_amplifier(!inserted);
@@ -55,18 +59,18 @@ static void handle_audiojack(bool inserted) {
     bsp_audio_set_volume((float)get_active_volume());
 }
 
-static void handle_volume(bool up, bool state) {
-    ESP_LOGI(TAG, "Audio volume %s %s", up ? "up" : "down", state ? "pressed" : "released");
+static void handle_volume(bool up, bool state)
+{
     if (!state) return;
 
     int next = (int)get_active_volume() + (up ? VOLUME_STEP_PERCENT : -VOLUME_STEP_PERCENT);
     if (next < 0) next = 0;
     if (next > 100) next = 100;
     set_active_volume((uint8_t)next);
-    ESP_LOGI(TAG, "Audio volume set to %d%%", next);
 }
 
-static bool input_hook_callback(bsp_input_event_t* event, void* user_data) {
+static bool input_hook_callback(bsp_input_event_t* event, void* user_data)
+{
     if (event->type == INPUT_EVENT_TYPE_ACTION) {
         // Only consume subtypes this handler actually owns. Unknown or
         // launcher-extended subtypes (WiFi, USB, app launch, etc.) fall
@@ -103,7 +107,8 @@ static bool input_hook_callback(bsp_input_event_t* event, void* user_data) {
     return false;
 }
 
-esp_err_t global_event_handler_initialize(void) {
+esp_err_t global_event_handler_initialize(void)
+{
     input_hook_id = bsp_input_hook_register(input_hook_callback, NULL);
     if (input_hook_id < 0) {
         return ESP_FAIL;

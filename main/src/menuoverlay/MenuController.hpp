@@ -12,6 +12,9 @@ class MenuController {
 
     MenuBaseClass* rootMenu;
     MenuBaseClass* currentMenu;
+    MenuBaseClass* previousMenu;
+
+    int prevJoystick;
 
     MenuBaseClass*       menusList;
     const MenuDataStore* menuDataStore = MenuDataStore::getInstance();

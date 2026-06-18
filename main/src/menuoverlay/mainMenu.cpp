@@ -31,9 +31,9 @@ void MainMenu::resetC64(MenuItem* item)
 bool MainMenu::init()
 {
     int id_count = 1;
-    loadMenu     = new LoadMenu("Load PRG (SD card)", this, menuController);
+    loadMenu     = new LoadMenu("Load PRG file from SD card (c64prg folder)", this, menuController);
     loadMenu->init();
-    usbLoadMenu = new UsbLoadMenu("Load PRG (USB)", this, menuController);
+    usbLoadMenu = new UsbLoadMenu("Load PRG file from USB disk (disk root)", this, menuController);
     usbLoadMenu->init();
 
     MenuDataStore* menuDataStore = MenuDataStore::getInstance();
@@ -41,28 +41,22 @@ bool MainMenu::init()
     // Setup the menu entries
     MenuItem* load_prg = new MenuItem();
     load_prg->id       = id_count++;
-    load_prg->title    = "Load PRG (SD card)";
+    load_prg->title    = "Load PRG file from SD card (c64prg folder)";
     load_prg->type     = MenuItemType::SUBMENU;
     load_prg->submenu  = loadMenu;
     items.push_back(*load_prg);
 
     MenuItem* usb_load_prg = new MenuItem();
     usb_load_prg->id       = id_count++;
-    usb_load_prg->title    = "Load PRG (USB)";
+    usb_load_prg->title    = "Load PRG file from USB disk (disk root)";
     usb_load_prg->type     = MenuItemType::SUBMENU;
     usb_load_prg->submenu  = usbLoadMenu;
     items.push_back(*usb_load_prg);
 
-    // Separator
-    MenuItem* sep1 = new MenuItem();
-    sep1->id       = id_count++;
-    sep1->type     = MenuItemType::SPACER;
-    items.push_back(*sep1);
-
     // Add menu items here
     MenuItem* joystick_emu   = new MenuItem();
     joystick_emu->id         = id_count++;
-    joystick_emu->title      = "keyboard joystick: ";
+    joystick_emu->title      = "Joystick emulation: ";
     joystick_emu->type       = MenuItemType::TOGGLE;
     joystick_emu->value_name = "kb_joystick_emu";
     menuDataStore->set("kb_joystick_emu", false);
@@ -71,7 +65,7 @@ bool MainMenu::init()
     // Speaker audio enable/disable
     MenuItem* speaker_emu   = new MenuItem();
     speaker_emu->id         = id_count++;
-    speaker_emu->title      = "speaker audio: ";
+    speaker_emu->title      = "Speaker audio: ";
     speaker_emu->type       = MenuItemType::TOGGLE;
     speaker_emu->value_name = "speaker_ena";
     menuDataStore->set("speaker_ena", false);
@@ -83,12 +77,6 @@ bool MainMenu::init()
     };
     items.push_back(*speaker_emu);
 
-    // Separator
-    MenuItem* sep3 = new MenuItem();
-    sep3->id       = id_count++;
-    sep3->type     = MenuItemType::SPACER;
-    items.push_back(*sep3);
-
     // Add menu items here
     MenuItem* reset_item = new MenuItem();
     reset_item->id       = id_count++;
@@ -97,7 +85,7 @@ bool MainMenu::init()
     reset_item->action   = [this](MenuItem* item) { this->resetC64(item); };
     items.push_back(*reset_item);
 
-    MenuItem* perf_mon   = new MenuItem();
+    /*MenuItem* perf_mon   = new MenuItem();
     perf_mon->id         = id_count++;
     perf_mon->title      = "Performance Monitor: ";
     perf_mon->type       = MenuItemType::TOGGLE;
@@ -108,7 +96,7 @@ bool MainMenu::init()
         // Set the performance monitor enabled/disabled in C64Emu
         this->c64emu->perf = enabled;
     };
-    items.push_back(*perf_mon);
+    items.push_back(*perf_mon);*/
 
     return true;
 }

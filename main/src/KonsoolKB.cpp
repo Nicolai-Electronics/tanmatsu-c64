@@ -50,7 +50,6 @@ void KonsoolKB::init(C64Emu* c64emu)
     this->c64emu         = c64emu;
     this->menuController = &c64emu->menuController;
 
-
     ESP_ERROR_CHECK(bsp_input_get_queue(&input_event_queue));
 
     // init buffer
@@ -84,6 +83,10 @@ void KonsoolKB::handleKeyPress()
             case INPUT_EVENT_TYPE_SCANCODE: {
                 // use Keycodes to keep track of pressed keys
                 key_code = event.args_scancode.scancode;
+                if (key_code == BSP_INPUT_SCANCODE_ESCAPED_VOLUME_UP ||
+                    key_code == BSP_INPUT_SCANCODE_ESCAPED_VOLUME_DOWN) {
+                    continue;  // Ignore keys
+                }
                 keys_pressed[key_code & 0x7f] = (key_code & 0x80) ? false : true;
                 if (key_code == BSP_INPUT_SCANCODE_F6) {
                     menuController->toggle();
@@ -94,6 +97,7 @@ void KonsoolKB::handleKeyPress()
                     // TODO: Remove me later
                     cur_port = menuDataStore->getInt("kb_joystick_port", 1);
                     ESP_LOGI(TAG, "Switched to joystick port %d", cur_port);
+                    menuController->handleInput(MENU_OVERLAY_INPUT_TYPE_NONE);
                 }
                 // Handle C64 keyboard matrix based on pressed keys
                 if (menuController->getVisible()) {
@@ -150,12 +154,14 @@ void KonsoolKB::handleKeyPress()
 
                 if (!menuController->getVisible() && virtjoystickvalue == 0xff) {
                     shiftctrlcode = 0;
-                    bool shift_pressed = keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT];
+                    bool shift_pressed =
+                        keys_pressed[BSP_INPUT_SCANCODE_LEFTSHIFT] || keys_pressed[BSP_INPUT_SCANCODE_RIGHTSHIFT];
 
                     for (int i = 0; i < 128; i++) {
-                        // shiftctrlcode = second byte bit 0 -> left shift, bit 1 -> ctrl, bit 2 -> commodore, bit 7 -> external
-                        // command
-                        if (i == BSP_INPUT_SCANCODE_F8 || i == BSP_INPUT_SCANCODE_LEFTSHIFT || i == BSP_INPUT_SCANCODE_LEFTCTRL || i == BSP_INPUT_SCANCODE_MENU) {
+                        // shiftctrlcode = second byte bit 0 -> left shift, bit 1 -> ctrl, bit 2 -> commodore, bit 7 ->
+                        // external command
+                        if (i == BSP_INPUT_SCANCODE_F8 || i == BSP_INPUT_SCANCODE_LEFTSHIFT ||
+                            i == BSP_INPUT_SCANCODE_LEFTCTRL || i == BSP_INPUT_SCANCODE_MENU) {
                             continue;
                         }
                         if (keys_pressed[i]) {
@@ -177,27 +183,6 @@ void KonsoolKB::handleKeyPress()
                 break;
             }
             case INPUT_EVENT_TYPE_NAVIGATION: {
-                if (event.args_navigation.state == false) {
-                    break;
-                }
-
-                switch (event.args_navigation.key) {
-                    break;
-                    case BSP_INPUT_NAVIGATION_KEY_VOLUME_DOWN:
-                        if (audio_volume > 0) {
-                            audio_volume -= 5;
-                            bsp_audio_set_volume(audio_volume);
-                        };
-                        break;
-                    case BSP_INPUT_NAVIGATION_KEY_VOLUME_UP:
-                        if (audio_volume <= 100) {
-                            audio_volume += 5;
-                            bsp_audio_set_volume(audio_volume);
-                        };
-                        break;
-                    default:
-                        break;
-                }
                 break;
             }
             default:
