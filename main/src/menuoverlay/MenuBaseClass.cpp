@@ -55,6 +55,7 @@ void MenuBaseClass::navigateBegin()
 {
     prevSelectedItemIndex = selectedItemIndex;
     selectedItemIndex     = 0;
+    firstVisibleItem      = 0;
 }
 
 void MenuBaseClass::navigateUp()
@@ -121,4 +122,9 @@ void MenuBaseClass::activateItem(uint16_t id)
         default:
             break;
     }
+}
+
+int MenuBaseClass::rowHeight() const
+{
+    return Theme::ROW_H;
 }

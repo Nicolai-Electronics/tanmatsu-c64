@@ -7,6 +7,8 @@
 #include "SDCard.hpp"
 #include "esp_log.h"
 #include "freertos/idf_additions.h"
+#include "images/CbmImage.hpp"
+#include "menuoverlay/ImageMenu.hpp"
 #include "menuoverlay/MenuController.hpp"
 #include "menuoverlay/MenuTypes.hpp"
 #include "portmacro.h"
@@ -15,41 +17,20 @@ static const char* TAG = "UsbLoadMenu";
 
 #define USB_PRG_PATH "/usb"
 
+static std::string usbPath(const std::string& filename)
+{
+    return std::string(USB_PRG_PATH "/") + filename;
+}
+
 UsbLoadMenu::UsbLoadMenu(std::string title, MenuBaseClass* previousMenu, MenuController* menuController)
     : MenuBaseClass(title, previousMenu, menuController)
 {
     c64emu = menuController->getC64Emu();
 }
 
-UsbLoadMenu::~UsbLoadMenu() {}
-
-void UsbLoadMenu::refreshEntries()
+UsbLoadMenu::~UsbLoadMenu()
 {
-    entries = SDCard::listProgramFiles(USB_PRG_PATH);
-}
-
-size_t UsbLoadMenu::pageCount() const
-{
-    if (entries.empty()) return 1;
-    return (entries.size() + pageSize - 1) / pageSize;
-}
-
-void UsbLoadMenu::toNextPage()
-{
-    // Wrapping means a program at the end of a long listing is one step back
-    // from the first page rather than a walk through every page in between.
-    nextPage = static_cast<uint16_t>((currentPage + 1) % pageCount());
-    // Deliberately not navigateBegin(): that override jumps back to the first
-    // page, which is right when entering the menu and wrong when paging.
-    MenuBaseClass::navigateBegin();
-    ESP_LOGI(TAG, "page %u of %zu", static_cast<unsigned>(nextPage + 1), pageCount());
-}
-
-void UsbLoadMenu::toPrevPage()
-{
-    nextPage = static_cast<uint16_t>((currentPage + pageCount() - 1) % pageCount());
-    MenuBaseClass::navigateBegin();
-    ESP_LOGI(TAG, "page %u of %zu", static_cast<unsigned>(nextPage + 1), pageCount());
+    delete imageMenu;
 }
 
 void UsbLoadMenu::displayMenu()
@@ -70,72 +51,77 @@ void UsbLoadMenu::displayMenu()
     if (entries.empty()) {
         MenuItem item = MenuItem();
         item.id       = 0;
-        item.title    = "(No programs found)";
+        item.title    = "(no files found)";
         item.type     = MenuItemType::SPACER;
         items.push_back(item);
         return;
     }
 
-    size_t pages = pageCount();
-    if (currentPage >= pages) currentPage = 0;
-
-    char label[40];
-    snprintf(label, sizeof(label), "=== Prev page (%u/%u) ===", static_cast<unsigned>(currentPage + 1),
-             static_cast<unsigned>(pages));
-
-    if (pages > 1) {
-        MenuItem prevPageItem = MenuItem();
-        prevPageItem.id       = 0xfffe;
-        prevPageItem.title    = label;
-        prevPageItem.type     = MenuItemType::ACTION;
-        prevPageItem.action   = [this](MenuItem* item) {
-            (void)item;
-            this->toPrevPage();
-        };
-        items.push_back(prevPageItem);
-    }
-
-    size_t   start    = static_cast<size_t>(currentPage) * pageSize;
+    // Every file goes in the list; the menu overlay scrolls it. Paging was
+    // only ever there because the overlay drew every item it was given.
     uint16_t id_count = 0;
-    for (size_t i = start; i < entries.size() && i < start + pageSize; i++) {
-        const std::string name = entries[i];
+    for (size_t i = 0; i < entries.size(); i++) {
+        const std::string filename = entries[i];
 
         MenuItem item = MenuItem();
         item.id       = id_count++;
-        item.title    = name;
+        item.title    = filename;
         item.type     = MenuItemType::ACTION;
-        item.action   = [this, name](MenuItem* menuItem) {
+        item.action   = [this, filename](MenuItem* menuItem) {
             (void)menuItem;
-            this->loadPrg(name);
+            this->openFile(filename);
         };
         items.push_back(item);
     }
+}
 
-    if (pages > 1) {
-        snprintf(label, sizeof(label), "=== Next page (%u/%u) ===", static_cast<unsigned>(currentPage + 1),
-                 static_cast<unsigned>(pages));
-        MenuItem nextPageItem = MenuItem();
-        nextPageItem.id       = 0xffff;
-        nextPageItem.title    = label;
-        nextPageItem.type     = MenuItemType::ACTION;
-        nextPageItem.action   = [this](MenuItem* item) {
-            (void)item;
-            this->toNextPage();
-        };
-        items.push_back(nextPageItem);
+void UsbLoadMenu::refreshEntries()
+{
+    entries = SDCard::listLoadableFiles(USB_PRG_PATH);
+}
+
+void UsbLoadMenu::openFile(const std::string& filename)
+{
+    switch (imageFormatFromName(filename)) {
+        case ImageFormat::PRG:
+            loadPrg(filename);
+            break;
+        case ImageFormat::T64:
+        case ImageFormat::D64:
+            openImage(filename);
+            break;
+        default:
+            ESP_LOGE(TAG, "cannot load %s", filename.c_str());
+            break;
     }
 }
 
-void UsbLoadMenu::loadPrg(const std::string& name)
+void UsbLoadMenu::loadPrg(const std::string& filename)
 {
     ExternalCmds* ext = &c64emu->externalCmds;
 
+    // Reset first so the program lands in a clean machine, then give the
+    // kernal time to finish starting up before dropping it into RAM.
     ext->reset();
     vTaskDelay(3000 / portTICK_PERIOD_MS);
-    std::string path = std::string(USB_PRG_PATH "/") + name + ".prg";
-    ext->loadPrgFromPath(path.c_str());
+    ext->loadPrgFromPath(usbPath(filename).c_str());
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     menuController->hide();
+}
+
+void UsbLoadMenu::openImage(const std::string& filename)
+{
+    if (imageMenu == nullptr) {
+        imageMenu = new ImageMenu(filename, this, menuController);
+        imageMenu->init();
+    }
+
+    if (!imageMenu->openImage(usbPath(filename))) {
+        ESP_LOGE(TAG, "no loadable programs in %s", filename.c_str());
+        // openImage() still leaves a readable placeholder in the submenu, so
+        // show it rather than silently ignoring the selection.
+    }
+    menuController->setCurrentMenu(imageMenu);
 }
 
 // Entering the menu starts again at the first page and rereads the directory,
@@ -143,7 +129,6 @@ void UsbLoadMenu::loadPrg(const std::string& name)
 void UsbLoadMenu::navigateBegin()
 {
     needsRefresh = true;
-    nextPage     = 0;
     MenuBaseClass::navigateBegin();
 }
 
@@ -152,10 +137,6 @@ void UsbLoadMenu::update()
     if (needsRefresh) {
         needsRefresh = false;
         refreshEntries();
-        currentPage = nextPage;
-        displayMenu();
-    } else if (currentPage != nextPage) {
-        currentPage = nextPage;
         displayMenu();
     }
 }
@@ -164,7 +145,6 @@ bool UsbLoadMenu::init()
 {
     ESP_LOGI(TAG, "initializing usb load menu");
     needsRefresh = true;
-    currentPage  = 0;
-    nextPage     = 0;
+    displayMenu();
     return true;
 }
