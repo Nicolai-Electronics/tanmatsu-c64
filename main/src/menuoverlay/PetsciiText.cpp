@@ -19,9 +19,7 @@
 #include <cstdint>
 #include "images/CbmImage.hpp"
 
-// roms/charset.h defines the array rather than declaring it, and C64Emu.cpp
-// already includes it, so including it here would be a second definition.
-extern unsigned char charset_rom[];
+extern unsigned char* charset_rom;
 
 // The unshifted charset is the first half of the ROM. That is the one the
 // directory a disk carries was drawn for; the shifted set at $0800 turns its

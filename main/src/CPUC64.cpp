@@ -28,12 +28,13 @@
 #include "esp_timer.h"
 #include "freertos/idf_additions.h"
 #include "portmacro.h"
-#include "roms/basic.h"
-#include "roms/kernal.h"
 
 static const uint8_t NUMCIACHECKS = 2;
 
 static const char* TAG = "CPUC64";
+
+extern unsigned char* kernal_rom;
+extern unsigned char* basic_rom;
 
 // read dc00 / dc01:
 // from

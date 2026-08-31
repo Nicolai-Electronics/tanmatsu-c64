@@ -248,41 +248,11 @@ bool ExternalCmds::loadImageEntryFromPath(const char* fullpath, uint16_t index) 
     return fileloaded;
 }
 
-// Reads the 1541 DOS ROM off the card. It is a copyrighted 16K binary so it
-// is not shipped with the firmware; drop it next to the disk images as
-// "1541.rom" to use the real drive.
 bool ExternalCmds::loadDriveRom() {
+    extern unsigned char* disk_rom;
+    driveRom = (uint8_t*)disk_rom;
     if (driveRom != nullptr) return true;
-    if (!sdcard.init()) return false;
-
-    std::string path = SDCard::fullPath(DRIVE_ROM_FILENAME);
-    int         fd   = open(path.c_str(), O_RDONLY);
-    if (fd < 0) {
-        ESP_LOGW(TAG, "no %s on the card, true drive emulation unavailable", DRIVE_ROM_FILENAME);
-        return false;
-    }
-
-    uint8_t* buffer    = new uint8_t[Drive1541::ROM_SIZE];
-    size_t   remaining = Drive1541::ROM_SIZE;
-    size_t   total     = 0;
-    while (remaining > 0) {
-        ssize_t got = read(fd, buffer + total, remaining);
-        if (got <= 0) break;
-        total     += static_cast<size_t>(got);
-        remaining -= static_cast<size_t>(got);
-    }
-    close(fd);
-
-    if (total != Drive1541::ROM_SIZE) {
-        ESP_LOGE(TAG, "%s is %u bytes, expected %u", DRIVE_ROM_FILENAME, static_cast<unsigned>(total),
-                 static_cast<unsigned>(Drive1541::ROM_SIZE));
-        delete[] buffer;
-        return false;
-    }
-
-    driveRom = buffer;
-    ESP_LOGI(TAG, "loaded %s", DRIVE_ROM_FILENAME);
-    return true;
+    return false;
 }
 
 bool ExternalCmds::setTrueDriveEmulation(bool enabled) {

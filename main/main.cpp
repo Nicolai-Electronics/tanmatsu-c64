@@ -40,15 +40,19 @@
 extern "C" {
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "bsp/device.h"
 #include "bsp/display.h"
-// #include "bsp/input.h"
+#include "bsp/input.h"
 #include "driver/gpio.h"
 #include "esp_lcd_panel_ops.h"
 // #include "hal/lcd_types.h"
 #include "nvs_flash.h"
 #include "usb_msc.h"
+#include "sdcard.h"
 }
 #endif
 #include "driver/gpio.h"
@@ -76,9 +80,76 @@ static wl_handle_t wl_handle = WL_INVALID_HANDLE;
 
 C64Emu c64Emu;
 
+unsigned char* kernal_rom = NULL;
+unsigned char* basic_rom = NULL;
+unsigned char* charset_rom = NULL;
+unsigned char* disk_rom = NULL;
+
 static void on_usb_mount(bool mounted, void* arg)
 {
     ESP_LOGI(TAG, "/usb %s", mounted ? "mounted" : "unmounted");
+}
+
+// Reads a whole ROM image off the mounted filesystem into a freshly malloc'd
+// buffer sized to match, via fstat rather than a size the caller has to know
+// in advance. Returns NULL (and logs why) rather than a short buffer, so
+// callers can tell a missing/short file from a real ROM.
+static unsigned char* load_rom_from_path(const char* path)
+{
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        ESP_LOGW(TAG, "failed to open ROM file %s: %s", path, strerror(errno));
+        return NULL;
+    }
+
+    struct stat st;
+    if (fstat(fd, &st) != 0 || st.st_size <= 0) {
+        ESP_LOGE(TAG, "failed to stat ROM file %s: %s", path, strerror(errno));
+        close(fd);
+        return NULL;
+    }
+    size_t size = (size_t)st.st_size;
+
+    unsigned char* buffer = (unsigned char*)malloc(size);
+    if (buffer == NULL) {
+        ESP_LOGE(TAG, "out of memory allocating %u bytes for %s", (unsigned)size, path);
+        close(fd);
+        return NULL;
+    }
+
+    size_t  total     = 0;
+    size_t  remaining = size;
+    while (remaining > 0) {
+        ssize_t got = read(fd, buffer + total, remaining);
+        if (got <= 0) {
+            break;
+        }
+        total     += (size_t)got;
+        remaining -= (size_t)got;
+    }
+    close(fd);
+
+    if (total != size) {
+        ESP_LOGE(TAG, "%s: read %u of %u bytes", path, (unsigned)total, (unsigned)size);
+        free(buffer);
+        return NULL;
+    }
+
+    ESP_LOGI(TAG, "loaded %s (%u bytes)", path, (unsigned)size);
+    return buffer;
+}
+
+// Tries each candidate path in order, returning the first one that loads.
+// `paths` is NULL-terminated.
+static unsigned char* load_rom(const char* const* paths)
+{
+    for (const char* const* p = paths; *p != NULL; ++p) {
+        unsigned char* buffer = load_rom_from_path(*p);
+        if (buffer != NULL) {
+            return buffer;
+        }
+    }
+    return NULL;
 }
 
 void setup()
@@ -98,6 +169,21 @@ void setup()
     ESP_LOGI(TAG, "setup done");
 }
 
+extern "C" void show_error_screen(pax_buf_t* framebuffer, const char *title, const char *detail) {
+    pax_background(framebuffer, pax_col_rgb(0, 0, 0));
+    pax_center_text(framebuffer, pax_col_rgb(255, 80, 80), PAX_FONT_DEFAULT, 18, pax_buf_get_width(framebuffer) / 2.0f, pax_buf_get_height(framebuffer) / 2.0f - 40, title);
+    pax_center_text(framebuffer, pax_col_rgb(220, 220, 220), PAX_FONT_DEFAULT, 14, pax_buf_get_width(framebuffer) / 2.0f, pax_buf_get_height(framebuffer) / 2.0f - 10, detail);
+    pax_center_text(framebuffer, pax_col_rgb(150, 150, 150), PAX_FONT_DEFAULT, 14, pax_buf_get_width(framebuffer) / 2.0f, pax_buf_get_height(framebuffer) / 2.0f + 20, "Press ESC to exit");
+    bsp_display_blit(0, 0, 480, 800, pax_buf_get_pixels(framebuffer));
+}
+
+extern "C" void wait_for_esc(void) {
+    bool pressed = false;
+    while (!(bsp_input_read_navigation_key(BSP_INPUT_NAVIGATION_KEY_ESC, &pressed) == ESP_OK && pressed)) {
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+
 extern "C" void app_main(void)
 {
     SemaphoreHandle_t semaphore      = NULL;
@@ -113,19 +199,6 @@ extern "C" void app_main(void)
         res = nvs_flash_init();
     }
     ESP_ERROR_CHECK(res);
-
-    esp_vfs_fat_mount_config_t fat_mount_config = {
-        .format_if_mount_failed   = false,
-        .max_files                = 10,
-        .allocation_unit_size     = CONFIG_WL_SECTOR_SIZE,
-        .disk_status_check_enable = false,
-        .use_one_fat              = false,
-    };
-
-    res = esp_vfs_fat_spiflash_mount_rw_wl("/int", "locfd", &fat_mount_config, &wl_handle);
-    if (res != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to mount FAT filesystem: %s", esp_err_to_name(res));
-    }
 
     // Initialize the Board Support Package
     const bsp_configuration_t bsp_configuration = {
@@ -182,10 +255,9 @@ extern "C" void app_main(void)
         pax_draw_tri(&framebuffer, C_RED, sx(106), sy(64), sx(130), sy(88), sx(78), sy(88));
 
         // The name, centred on the real measured width rather than a guess.
-        const char* name = "Konsool 64";
+        const char* name = "";
         const char* sub  = "COMMODORE 64 EMULATOR";
-        const float NAME_SIZE = 36.0f;
-        pax_vec2f   nsz       = pax_text_size(pax_font_saira_regular, NAME_SIZE, name);
+        pax_vec2f   nsz       = pax_text_size(pax_font_saira_regular, Theme::BODY_SIZE, name);
         pax_vec2f   ssz       = pax_text_size(pax_font_saira_regular, Theme::BODY_SIZE, sub);
 
         // Centre on the measured width, but never off the side of the screen:
@@ -195,8 +267,8 @@ extern "C" void app_main(void)
             float x = (800.0f - (w > 1.0f ? w : fallback)) / 2.0f;
             return x < 20.0f ? 20.0f : x;
         };
-        pax_draw_text(&framebuffer, Theme::TEXT_PRIMARY, pax_font_saira_regular, NAME_SIZE,
-                      centre(nsz.x, NAME_SIZE * 0.55f * 10), sy(122) + 24.0f, name);
+        pax_draw_text(&framebuffer, Theme::TEXT_PRIMARY, pax_font_saira_regular, Theme::BODY_SIZE,
+                      centre(nsz.x, Theme::BODY_SIZE * 0.55f * 10), sy(122) + 24.0f, name);
         pax_draw_text(&framebuffer, Theme::TEXT_MUTED, pax_font_saira_regular, Theme::BODY_SIZE,
                       centre(ssz.x, Theme::BODY_SIZE * 0.55f * 21), sy(122) + 74.0f, sub);
 
@@ -216,6 +288,59 @@ extern "C" void app_main(void)
     esp_lcd_panel_handle_t display_lcd_panel;
     bsp_display_get_panel(&display_lcd_panel);
     esp_lcd_panel_draw_bitmap(display_lcd_panel, 0, 0, 480, 800, pax_buf_get_pixels(&framebuffer));
+
+    esp_vfs_fat_mount_config_t fat_mount_config = {
+        .format_if_mount_failed   = false,
+        .max_files                = 10,
+        .allocation_unit_size     = CONFIG_WL_SECTOR_SIZE,
+        .disk_status_check_enable = false,
+        .use_one_fat              = false,
+    };
+
+    res = esp_vfs_fat_spiflash_mount_rw_wl("/int", "locfd", &fat_mount_config, &wl_handle);
+    if (res != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to mount FAT filesystem: %s", esp_err_to_name(res));
+        /*show_error_screen(&framebuffer, "Fatal error", "Failed to mount internal FAT filesystem!");
+        wait_for_esc();
+        bsp_device_restart_to_launcher();
+        return;*/
+    }
+
+    sd_mount();
+
+    static const char* const kernalPaths[]  = {"/sd/apps/nl.ranzbak.c64/kernal.bin", "/int/apps/nl.ranzbak.c64/kernal.bin", NULL};
+    static const char* const basicPaths[]   = {"/sd/apps/nl.ranzbak.c64/basic.bin", "/int/apps/nl.ranzbak.c64/basic.bin", NULL};
+    static const char* const charsetPaths[] = {"/sd/apps/nl.ranzbak.c64/charset.bin", "/int/apps/nl.ranzbak.c64/charset.bin", NULL};
+    static const char* const diskPaths[]    = {"/sd/apps/nl.ranzbak.c64/1541.bin", "/int/apps/nl.ranzbak.c64/1541.bin", NULL};
+
+    struct RomToLoad {
+        const char*        name;
+        const char* const* paths;
+        unsigned char**    target;
+        bool                required;
+    };
+    const RomToLoad roms[] = {
+        {"Kernal",     kernalPaths,  &kernal_rom,  true },
+        {"Basic",      basicPaths,   &basic_rom,   true },
+        {"Charset",    charsetPaths, &charset_rom, true },
+        {"1541 drive", diskPaths,    &disk_rom,    false},
+    };
+
+    bool fatal = false;
+    for (const RomToLoad& rom : roms) {
+        *rom.target = load_rom(rom.paths);
+        if (*rom.target == NULL && rom.required) {
+            char detail[256];
+            snprintf(detail, sizeof(detail), "Failed to load %s ROM!", rom.name);
+            show_error_screen(&framebuffer, "Fatal error", detail);
+            wait_for_esc();
+            fatal = true;
+        }
+    }
+    if (fatal) {
+        bsp_device_restart_to_launcher();
+        return;
+    }
 
     setup();  // Initialize the C64 emulator and the display driver
 

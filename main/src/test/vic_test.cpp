@@ -34,8 +34,9 @@
 
 #include "HeadlessDisplay.hpp"
 #include "VIC.hpp"
-#include "roms/charset.h"
 #include "sid/sid.hpp"
+
+extern unsigned char charset_rom[];
 
 static int checks   = 0;
 static int failures = 0;
