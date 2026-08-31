@@ -5,11 +5,10 @@
 #include <sys/unistd.h>
 #include <cstdint>
 #include <cstring>
-#include <strings.h>
-#include <algorithm>
-#include <cctype>
 #include <string>
 #include <vector>
+#include <strings.h>
+#include <algorithm>
 #include "Config.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -30,7 +29,6 @@ SDCard::~SDCard()
 
 bool SDCard::init()
 {
-    esp_err_t ret;
     if (initialized) {
         return true;
     }
@@ -70,10 +68,18 @@ void getPath(char* path, uint8_t* ram)
     path[i]   = '\0';
 }
 
-uint16_t SDCard::load(const char* path, uint8_t* ram, size_t len)
+std::string SDCard::fullPath(const char* filename) {
+    std::string path = SD_CARD_PRG_PATH;
+    if (filename == nullptr || filename[0] == '\0') return path;
+    if (filename[0] != '/') path += '/';
+    path += filename;
+    return path;
+}
+
+// Reads a .prg into RAM: two byte load address followed by the data. Returns
+// the address one past the last byte written, or 0 if nothing was loaded.
+uint16_t SDCard::readPrg(const char* full_path, uint8_t* ram)
 {
-    char full_path[128];
-    snprintf(full_path, sizeof(full_path), "%s%s", SD_CARD_PRG_PATH, path);
     int fd = open(full_path, O_RDONLY);
     if (fd < 0) return 0;
 
@@ -83,45 +89,63 @@ uint16_t SDCard::load(const char* path, uint8_t* ram, size_t len)
         return 0;
     }
     uint16_t addr = hdr[0] | (hdr[1] << 8);
-    uint16_t pos  = addr;
-    while (read(fd, &ram[pos], 1) == 1) pos++;
+
+    // A program longer than the space above its load address would otherwise
+    // run straight off the end of the 64K RAM buffer, so stop at $FFFF.
+    size_t pos  = addr;
+    size_t room = (C64_RAM_SIZE - 1) - addr;
+    while (room > 0) {
+        ssize_t got = read(fd, ram + pos, room);
+        if (got <= 0) break;
+        pos  += static_cast<size_t>(got);
+        room -= static_cast<size_t>(got);
+    }
     close(fd);
-    return pos;
+
+    if (pos == addr) return 0;
+    return static_cast<uint16_t>(pos);
+}
+
+uint16_t SDCard::load(const char* path, uint8_t* ram, size_t len) {
+    (void)len;
+    return readPrg(fullPath(path).c_str(), ram);
 }
 
 uint16_t SDCard::load_auto(const char* path, uint8_t* ram, size_t len)
 {
+    (void)path;
+    (void)len;
     char file_path[64] = {0};
     if (!initialized) return 0;
+    // The file name comes from the BASIC LOAD command still on screen.
     getPath(file_path, ram);
-    ESP_LOGI(TAG, "load file %s", path);
+    ESP_LOGI(TAG, "load file %s", file_path);
 
-    char full_path[128];
-    snprintf(full_path, sizeof(full_path), "%s%s", SD_CARD_PRG_PATH, file_path);
-    int fd = open(full_path, O_RDONLY);
-    if (fd < 0) return 0;
-
-    uint8_t hdr[2];
-    if (read(fd, hdr, 2) != 2) {
-        close(fd);
-        return 0;
-    }
-    uint16_t addr = hdr[0] | (hdr[1] << 8);
-    uint16_t pos  = addr;
-    while (read(fd, &ram[pos], 1) == 1) pos++;
-    close(fd);
-    return pos;
+    return readPrg(fullPath(file_path).c_str(), ram);
 }
 
 bool SDCard::save(const char* path, const uint8_t* ram, size_t len)
 {
+    (void)path;
+    (void)len;
     if (!initialized) return false;
-    getPath(const_cast<char*>(path), const_cast<uint8_t*>(ram));
+
+    // getPath() writes the name it scrapes off the screen into the buffer it
+    // is given, so it needs somewhere writable of its own.
+    char file_path[64] = {0};
+    getPath(file_path, const_cast<uint8_t*>(ram));
+
     uint16_t startaddr = ram[43] + ram[44] * 256;
     uint16_t endaddr   = ram[45] + ram[46] * 256;
-    ESP_LOGI(TAG, "save file %s", path);
+    if (endaddr <= startaddr) {
+        ESP_LOGI(TAG, "nothing to save, start $%04x end $%04x", startaddr, endaddr);
+        return false;
+    }
 
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    std::string full_path = fullPath(file_path);
+    ESP_LOGI(TAG, "save file %s", full_path.c_str());
+
+    int fd = open(full_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
     if (fd < 0) return false;
 
     write(fd, &ram[43], 2);
@@ -130,7 +154,7 @@ bool SDCard::save(const char* path, const uint8_t* ram, size_t len)
     return true;
 }
 
-std::vector<std::string> SDCard::listProgramFiles(const char* path)
+std::vector<std::string> SDCard::listLoadableFiles(const char* path)
 {
     std::vector<std::string> result;
     bool                     truncated = false;
@@ -144,35 +168,29 @@ std::vector<std::string> SDCard::listProgramFiles(const char* path)
     struct dirent* ent;
     while ((ent = readdir(dir)) != nullptr) {
         std::string name = ent->d_name;
-        if (name.length() <= 4) continue;
-
-        std::string ext = name.substr(name.length() - 4);
-        for (size_t i = 0; i < ext.size(); i++) {
-            ext[i] = static_cast<char>(tolower(static_cast<unsigned char>(ext[i])));
-        }
-        if (ext != ".prg") continue;
+        if (imageFormatFromName(name) == ImageFormat::UNKNOWN) continue;
 
         if (result.size() >= MAX_LISTED_FILES) {
             truncated = true;
             break;
         }
-        result.push_back(name.substr(0, name.length() - 4));
+        result.push_back(name);
     }
     closedir(dir);
 
     if (truncated) {
-        ESP_LOGW(TAG, "%s holds more than %u programs, the rest are not listed", path,
+        ESP_LOGW(TAG, "%s holds more than %u loadable files, the rest are not listed", path,
                  static_cast<unsigned>(MAX_LISTED_FILES));
     }
 
     // readdir hands entries back in whatever order the filesystem stored them,
     // so a file sits wherever it was written rather than where it is looked
-    // for. Sorting also keeps the pages stable from one refresh to the next.
+    // for. Sorting also keeps the pages steady from one refresh to the next.
     std::sort(result.begin(), result.end(), [](const std::string& a, const std::string& b) {
         return strcasecmp(a.c_str(), b.c_str()) < 0;
     });
 
-    ESP_LOGI(TAG, "%zu programs in %s", result.size(), path);
+    ESP_LOGI(TAG, "%zu loadable files in %s", result.size(), path);
     return result;
 }
 
