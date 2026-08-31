@@ -13,6 +13,17 @@ extern "C" {
 #include "bsp/device.h"
 }
 
+// Data store key holding the joystick port, 1 or 2
+static const char* JOYSTICK_PORT_VALUE_NAME = "kb_joystick_port";
+
+// Most games use port 2
+static const int JOYSTICK_PORT_DEFAULT = 2;
+
+static std::string joystickPortTitle(int port)
+{
+    return "Joystick port: " + std::to_string(port);
+}
+
 MainMenu::MainMenu(std::string title, MenuBaseClass* previousMenu, MenuController* menuController)
     : MenuBaseClass(title, previousMenu, menuController)
 {
@@ -21,6 +32,16 @@ MainMenu::MainMenu(std::string title, MenuBaseClass* previousMenu, MenuControlle
 }
 
 MainMenu::~MainMenu() {};
+
+void MainMenu::update()
+{
+    // The port can also be switched with F5, so keep the title in sync with the data store
+    for (auto& item : items) {
+        if (item.value_name == JOYSTICK_PORT_VALUE_NAME) {
+            item.title = joystickPortTitle(menuDataStore->getInt(JOYSTICK_PORT_VALUE_NAME, JOYSTICK_PORT_DEFAULT));
+        }
+    }
+}
 
 void MainMenu::resetC64(MenuItem* item)
 {
@@ -59,6 +80,22 @@ bool MainMenu::init()
     usb_load_prg->submenu  = usbLoadMenu;
     items.push_back(*usb_load_prg);
 
+    // Joystick port used by the keyboard joystick emulation, and by a USB gamepad
+    // unless two player mode puts the gamepad on the other port
+    MenuItem* joystick_port   = new MenuItem();
+    joystick_port->id         = id_count++;
+    joystick_port->type       = MenuItemType::ACTION;
+    joystick_port->value_name = JOYSTICK_PORT_VALUE_NAME;
+    joystick_port->title      = joystickPortTitle(JOYSTICK_PORT_DEFAULT);
+    menuDataStore->set(JOYSTICK_PORT_VALUE_NAME, JOYSTICK_PORT_DEFAULT);
+    joystick_port->action = [](MenuItem* item) {
+        MenuDataStore* menuDataStore = MenuDataStore::getInstance();
+        int            port = menuDataStore->getInt(JOYSTICK_PORT_VALUE_NAME, JOYSTICK_PORT_DEFAULT) == 1 ? 2 : 1;
+        menuDataStore->set(JOYSTICK_PORT_VALUE_NAME, port);
+        ESP_LOGI("MainMenu", "Switched to joystick port %d", port);
+    };
+    items.push_back(*joystick_port);
+
     // Add menu items here
     MenuItem* joystick_emu   = new MenuItem();
     joystick_emu->id         = id_count++;
@@ -67,6 +104,16 @@ bool MainMenu::init()
     joystick_emu->value_name = "kb_joystick_emu";
     menuDataStore->set("kb_joystick_emu", false);
     items.push_back(*joystick_emu);
+
+    // Two players: the keyboard joystick stays on the port above and a USB gamepad
+    // takes the other one, so two people can play at the same time
+    MenuItem* two_player   = new MenuItem();
+    two_player->id         = id_count++;
+    two_player->title      = "Two players (gamepad on other port): ";
+    two_player->type       = MenuItemType::TOGGLE;
+    two_player->value_name = "two_player";
+    menuDataStore->set("two_player", false);
+    items.push_back(*two_player);
 
     // Speaker audio enable/disable
     MenuItem* speaker_emu   = new MenuItem();
